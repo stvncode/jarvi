@@ -1,0 +1,31 @@
+{
+  "name": "@jarvi/backend",
+  "version": "1.0.50",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "clean": "rm -rf dist",
+    "type-check": "tsc --noEmit",
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "dev": "bun run --watch src/index.ts",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "bun run src/db/migrate.ts",
+    "db:studio": "bunx drizzle-kit studio"
+  },
+  "dependencies": {
+    "@elysiajs/cors": "^1.0.0",
+    "@elysiajs/swagger": "^1.3.1",
+    "dotenv": "^17.2.0",
+    "drizzle-orm": "^0.44.2",
+    "elysia": "latest",
+    "pg": "^8.16.3"
+  },
+  "devDependencies": {
+    "@types/pg": "^8.15.4",
+    "bun-types": "latest",
+    "drizzle-kit": "^0.31.4",
+    "tsx": "^4.20.3"
+  },
+  "module": "src/index.js"
+}
