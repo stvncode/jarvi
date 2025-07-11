@@ -2,7 +2,7 @@ import { match } from 'ts-pattern'
 import { create } from 'zustand'
 import type { StatsFilters } from '../../shared/src/types'
 
-const USER_ID = 'efd70154-165a-48e4-87d9-8f083d9f435d' // Quentin Decré id
+const USER_ID = '32ca93da-0cf6-4608-91e7-bc6a2dbedcd1' // Quentin Decré id
 
 interface StatsFiltersState {
   dateRange: '7d' | '30d' | '90d'

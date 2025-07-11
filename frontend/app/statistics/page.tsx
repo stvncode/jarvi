@@ -1,8 +1,8 @@
 'use client'
 
-import { DateRangePicker } from "@/features/DateRangePicker"
-import { ChartAreaInteractive } from "@/features/InteractiveChart"
-import { SectionCards } from "@/features/SectionCards"
+import { DateRangePicker } from "@/features/DateRangePicker";
+import { ChartAreaInteractive } from "@/features/InteractiveChart";
+import { SectionCards } from "@/features/SectionCards";
 
 export default function Statistics() {
   return (
