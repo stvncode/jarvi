@@ -1,6 +1,6 @@
 import { Elysia, t } from 'elysia'
-import type { StatsFilters } from '../../../shared/src/types'
 import { getAvailableProjects, getCompleteStats, getDailyStatsForPeriod } from '../services/stats'
+import { StatsFilters } from '../services/type'
 
 export const statsRoutes = new Elysia({ prefix: '/api/stats' })
   .get(

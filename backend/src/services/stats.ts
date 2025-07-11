@@ -1,7 +1,7 @@
 import { and, eq, gte, inArray, isNull, lte, sql } from 'drizzle-orm'
-import type { MessageType, MessageTypeStats, PeriodComparison, StatsFilters, StatsResponse } from '../../../shared/src/types'
 import { db } from '../db/connection'
 import { historyEntries } from '../db/schema'
+import { MessageType, MessageTypeStats, PeriodComparison, StatsFilters, StatsResponse } from './type'
 
 const MESSAGE_TYPES: MessageType[] = ['EMAIL_SENT', 'LINKEDIN_MESSAGE_SENT', 'LINKEDIN_INMAIL_SENT'];
 
