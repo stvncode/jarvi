@@ -126,8 +126,9 @@ export function calculatePreviousPeriod(start_date: string, end_date: string): {
   };
 }
 
-export async function getComparison(filters: StatsFilters): Promise<PeriodComparison | null> {
-  const currentStats = await getStatsForPeriod(filters);
+export async function getComparison(filters: StatsFilters, currentStats?: MessageTypeStats[]): Promise<PeriodComparison | null> {
+  const current = currentStats || await getStatsForPeriod(filters);
+  
   const previousPeriod = calculatePreviousPeriod(filters.start_date, filters.end_date);
   const previousStats = await getStatsForPeriod({
     ...filters,
@@ -135,8 +136,8 @@ export async function getComparison(filters: StatsFilters): Promise<PeriodCompar
     end_date: previousPeriod.end_date
   });
 
-  const currentTotal = currentStats.reduce((sum, stat) => sum + stat.total_sent, 0);
-  const currentReplied = currentStats.reduce((sum, stat) => sum + stat.total_replied, 0);
+  const currentTotal = current.reduce((sum, stat) => sum + stat.total_sent, 0);
+  const currentReplied = current.reduce((sum, stat) => sum + stat.total_replied, 0);
   const currentResponseRate = currentTotal > 0 ? (currentReplied / currentTotal) * 100 : 0;
 
   const previousTotal = previousStats.reduce((sum, stat) => sum + stat.total_sent, 0);
@@ -158,16 +159,65 @@ export async function getComparison(filters: StatsFilters): Promise<PeriodCompar
 }
 
 export async function getCompleteStats(filters: StatsFilters, includeComparison = false): Promise<StatsResponse> {
-  const statsByType = await getStatsForPeriod(filters);
+  let statsByType: MessageTypeStats[];
+  let comparison: PeriodComparison | undefined;
+
+  if (includeComparison) {
+    const previousPeriod = calculatePreviousPeriod(filters.start_date, filters.end_date);
+    const previousFilters = {
+      ...filters,
+      start_date: previousPeriod.start_date,
+      end_date: previousPeriod.end_date
+    };
+
+    const [currentStats, previousStats] = await Promise.all([
+      getStatsForPeriod(filters),
+      getStatsForPeriod(previousFilters)
+    ]);
+
+    statsByType = currentStats.map(currentStat => {
+      const previousStat = previousStats.find(p => p.type === currentStat.type);
+      
+      if (previousStat && previousStat.total_sent > 0) {
+        const changePercentage = ((currentStat.response_rate - previousStat.response_rate) / previousStat.response_rate) * 100;
+        
+        return {
+          ...currentStat,
+          comparison: {
+            previous_response_rate: previousStat.response_rate,
+            change_percentage: Number(changePercentage.toFixed(2)),
+            is_improvement: changePercentage > 0
+          }
+        };
+      }
+      
+      return currentStat;
+    });
+
+    const currentTotal = currentStats.reduce((sum, stat) => sum + stat.total_sent, 0);
+    const currentReplied = currentStats.reduce((sum, stat) => sum + stat.total_replied, 0);
+    const currentResponseRate = currentTotal > 0 ? (currentReplied / currentTotal) * 100 : 0;
+
+    const previousTotal = previousStats.reduce((sum, stat) => sum + stat.total_sent, 0);
+    const previousReplied = previousStats.reduce((sum, stat) => sum + stat.total_replied, 0);
+    const previousResponseRate = previousTotal > 0 ? (previousReplied / previousTotal) * 100 : 0;
+
+    if (previousTotal > 0) {
+      const changePercentage = ((currentResponseRate - previousResponseRate) / previousResponseRate) * 100;
+      comparison = {
+        current_response_rate: Number(currentResponseRate.toFixed(2)),
+        previous_response_rate: Number(previousResponseRate.toFixed(2)),
+        change_percentage: Number(changePercentage.toFixed(2)),
+        is_improvement: changePercentage > 0
+      };
+    }
+  } else {
+    statsByType = await getStatsForPeriod(filters);
+  }
   
   const totalMessages = statsByType.reduce((sum, stat) => sum + stat.total_sent, 0);
   const totalReplied = statsByType.reduce((sum, stat) => sum + stat.total_replied, 0);
   const overallResponseRate = totalMessages > 0 ? Number(((totalReplied / totalMessages) * 100).toFixed(2)) : 0;
-
-  let comparison: PeriodComparison | undefined;
-  if (includeComparison) {
-    comparison = await getComparison(filters) || undefined;
-  }
 
   return {
     period: {

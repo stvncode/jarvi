@@ -113,7 +113,7 @@ export function SectionCards() {
   const globalCard = (
     <Card className="@container/card">
       <CardHeader>
-        <CardDescription>Taux de réponse global</CardDescription>
+        <CardDescription className="h-6 flex items-center">Taux global</CardDescription>
         <CardTitle className="text-2xl font-semibold tabular-nums @[250px]/card:text-3xl">
           {stats.overall_response_rate}%
         </CardTitle>
@@ -161,24 +161,25 @@ export function SectionCards() {
     const totalSent = stat?.total_sent || 0
     const totalReplied = stat?.total_replied || 0
 
-    const estimatedChange = stats.comparison?.change_percentage || 0
-    const TrendingIcon = getTrendingIcon(estimatedChange)
+    const specificChange = stat?.comparison?.change_percentage || 0
+    const hasSpecificComparison = stat?.comparison !== undefined
+    const TrendingIcon = getTrendingIcon(specificChange)
 
     return (
       <Card key={messageType} className="@container/card">
         <CardHeader>
-          <CardDescription className="flex items-center gap-2">
-            <Icon className={`size-4 ${config.color}`} />
+          <CardDescription className="h-6 flex items-center gap-2">
+            <Icon className={`size-4 mb-0.5 ${config.color}`} />
             {config.label}
           </CardDescription>
           <CardTitle className="text-2xl font-semibold tabular-nums @[250px]/card:text-3xl">
             {responseRate}%
           </CardTitle>
           <CardAction>
-            {stats.comparison && totalSent > 0 ? (
-              <Badge variant={getTrendingVariant(estimatedChange)}>
+            {hasSpecificComparison && totalSent > 0 ? (
+              <Badge variant={getTrendingVariant(specificChange)}>
                 <TrendingIcon className="size-3 mr-1" />
-                {estimatedChange > 0 ? '+' : ''}{estimatedChange.toFixed(1)}%
+                {specificChange > 0 ? '+' : ''}{specificChange.toFixed(1)}%
               </Badge>
             ) : (
               <Badge variant={totalSent > 0 ? "outline" : "secondary"}>
@@ -189,9 +190,9 @@ export function SectionCards() {
         </CardHeader>
         <CardFooter className="flex-col items-start gap-1.5 text-sm">
           <div className="line-clamp-1 flex gap-2 font-medium">
-            {stats.comparison && totalSent > 0 ? (
+            {hasSpecificComparison && totalSent > 0 ? (
               <>
-                {formatTrendingText(estimatedChange, stats.comparison.is_improvement)}
+                {formatTrendingText(specificChange, stat?.comparison?.is_improvement || false)}
                 <TrendingIcon className="size-4" />
               </>
             ) : totalSent > 0 ? (
@@ -201,8 +202,8 @@ export function SectionCards() {
             )}
           </div>
           <div className="text-muted-foreground">
-            {stats.comparison && totalSent > 0 ? (
-              getTrendingDescription(estimatedChange, config.label)
+            {hasSpecificComparison && totalSent > 0 ? (
+              getTrendingDescription(specificChange, config.label)
             ) : totalSent > 0 ? (
               `sur ${totalSent} message${totalSent > 1 ? 's' : ''} envoyé${totalSent > 1 ? 's' : ''}`
             ) : (

@@ -1,4 +1,5 @@
-import { ArrowRight, Mail, MessageSquare, Send, Sparkles } from "lucide-react"
+import { IconBrandLinkedin } from "@tabler/icons-react"
+import { ArrowRight, Mail, Send, Sparkles } from "lucide-react"
 import Link from "next/link"
 
 export default function Home() {
@@ -30,12 +31,12 @@ export default function Home() {
             </Link>
             <div className="mt-16 grid grid-cols-1 md:grid-cols-3 gap-8 max-w-3xl mx-auto">
               <div className="bg-white/60 backdrop-blur-sm rounded-xl p-6 border border-white/20">
-                <Mail className="h-8 w-8 text-blue-600 mx-auto mb-3" />
+                <Mail className="h-8 w-8 text-red-600 mx-auto mb-3" />
                 <div className="text-2xl font-bold text-gray-900">Email</div>
                 <div className="text-gray-600">Campagnes directes</div>
               </div>
               <div className="bg-white/60 backdrop-blur-sm rounded-xl p-6 border border-white/20">
-                <MessageSquare className="h-8 w-8 text-green-600 mx-auto mb-3" />
+                <IconBrandLinkedin className="h-8 w-8 text-blue-600 mx-auto mb-3" />
                 <div className="text-2xl font-bold text-gray-900">LinkedIn</div>
                 <div className="text-gray-600">Messages directs</div>
               </div>

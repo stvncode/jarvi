@@ -36,6 +36,11 @@ export interface MessageTypeStats {
   total_sent: number;
   total_replied: number;
   response_rate: number;
+  comparison?: {
+    previous_response_rate: number;
+    change_percentage: number;
+    is_improvement: boolean;
+  };
 }
 
 export interface PeriodComparison {
