@@ -86,7 +86,7 @@ Le frontend sera accessible sur `http://localhost:3000`
 
 1. **Accéder au dashboard** : Ouvrir `http://localhost:3000/statistics`
 
-2. **Sélectionner une période** : Utiliser le sélecteur de période (7j/30j/90j)
+2. **Sélectionner une période** : Utiliser le sélecteur de période
 
 3. **Analyser les résultats** :
    - **Cartes de statistiques** : Vue d'ensemble des taux de réponse

@@ -15,7 +15,7 @@ export function DateRangePicker() {
       onUpdate={({ range, rangeCompare }) => {
         setDateRange(range, rangeCompare)
       }}
-      showCompare={true}
+      showCompare={false}
       align="end"
       locale="fr-FR"
     />
