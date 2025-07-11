@@ -6,7 +6,9 @@ import { statsRoutes } from "./routes/stats"
 
 const app = new Elysia()
   .use(cors({
-    origin: true,
+    origin: ['http://localhost:3000', 'http://127.0.0.1:3000'],
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization'],
     credentials: true
   }))
   .use(swagger({

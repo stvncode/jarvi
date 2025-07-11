@@ -1,8 +1,9 @@
 'use client'
 
-import { DateRangePicker } from "@/features/DateRangePicker";
-import { ChartAreaInteractive } from "@/features/InteractiveChart";
-import { SectionCards } from "@/features/SectionCards";
+import { DateRangePicker } from "@/features/DateRangePicker"
+import { ChartAreaInteractive } from "@/features/InteractiveChart"
+import { ProjectSelector } from "@/features/ProjectSelector"
+import { SectionCards } from "@/features/SectionCards"
 
 export default function Statistics() {
   return (
@@ -14,7 +15,10 @@ export default function Statistics() {
             Analysez vos taux de réponse par type de message
           </p>
         </div>
-        <DateRangePicker />
+        <div className="flex items-center gap-3">
+          <ProjectSelector />
+          <DateRangePicker />
+        </div>
       </div>
       <SectionCards />
       <div className="px-4 lg:px-6">

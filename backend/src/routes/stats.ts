@@ -1,6 +1,6 @@
 import { Elysia, t } from 'elysia'
 import type { StatsFilters } from '../../../shared/src/types'
-import { getCompleteStats } from '../services/stats'
+import { getAvailableProjects, getCompleteStats, getDailyStatsForPeriod } from '../services/stats'
 
 export const statsRoutes = new Elysia({ prefix: '/api/stats' })
   .get(
@@ -36,6 +36,62 @@ export const statsRoutes = new Elysia({ prefix: '/api/stats' })
         end_date: t.String(),
         project_id: t.Optional(t.String()),
         include_comparison: t.Optional(t.String())
+      })
+    }
+  )
+  .get(
+    '/daily-stats',
+    async ({ query }) => {
+      const filters: StatsFilters = {
+        user_id: query.user_id,
+        start_date: query.start_date,
+        end_date: query.end_date,
+        project_id: query.project_id || undefined
+      };
+      
+      try {
+        const dailyStats = await getDailyStatsForPeriod(filters);
+        return {
+          success: true,
+          data: dailyStats
+        };
+      } catch (error) {
+        console.error('Error fetching daily stats:', error);
+        return {
+          success: false,
+          error: error instanceof Error ? error.message : 'Failed to fetch daily statistics'
+        };
+      }
+    },
+    {
+      query: t.Object({
+        user_id: t.String(),
+        start_date: t.String(),
+        end_date: t.String(),
+        project_id: t.Optional(t.String())
+      })
+    }
+  )
+  .get(
+    '/projects',
+    async ({ query }) => {
+      try {
+        const projects = await getAvailableProjects(query.user_id);
+        return {
+          success: true,
+          data: projects
+        };
+      } catch (error) {
+        console.error('Error fetching projects:', error);
+        return {
+          success: false,
+          error: error instanceof Error ? error.message : 'Failed to fetch projects'
+        };
+      }
+    },
+    {
+      query: t.Object({
+        user_id: t.String()
       })
     }
   ) 

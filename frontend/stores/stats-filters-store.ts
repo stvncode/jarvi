@@ -1,52 +1,56 @@
-import { match } from 'ts-pattern'
 import { create } from 'zustand'
 import type { StatsFilters } from '../../shared/src/types'
 
-const USER_ID = '32ca93da-0cf6-4608-91e7-bc6a2dbedcd1' // Quentin Decré id
+const USER_ID = '32ca93da-0cf6-4608-91e7-bc6a2dbedcd1' // Correct Quentin Decré id
+
+interface DateRange {
+  from: Date
+  to: Date | undefined
+}
 
 interface StatsFiltersState {
-  dateRange: '7d' | '30d' | '90d'
+  dateRange: DateRange
+  rangeCompare?: DateRange
   projectId?: string
-  setDateRange: (range: '7d' | '30d' | '90d') => void
+  setDateRange: (range: DateRange, rangeCompare?: DateRange) => void
   setProjectId: (id: string | undefined) => void
   getFilters: () => StatsFilters
 }
 
+const getDefaultDateRange = (): DateRange => {
+  const to = new Date()
+  const from = new Date()
+  from.setDate(to.getDate() - 30)
+  return { from, to }
+}
+
 export const useStatsFiltersStore = create<StatsFiltersState>((set, get) => ({
-  dateRange: '30d',
+  dateRange: getDefaultDateRange(),
+  rangeCompare: undefined,
   projectId: undefined,
   
-  setDateRange: (range) => set({ dateRange: range }),
+  setDateRange: (range, rangeCompare) => set({ dateRange: range, rangeCompare }),
   setProjectId: (id) => set({ projectId: id }),
   
   getFilters: () => {
     const { dateRange, projectId } = get()
-    const endDate = new Date()
-    const startDate = new Date()
-
-    match(dateRange).with('7d', () => {
-      startDate.setDate(endDate.getDate() - 7)
-    }).with('30d', () => {
-      startDate.setDate(endDate.getDate() - 30)
-    }).with('90d', () => {
-      startDate.setDate(endDate.getDate() - 90)
-    }).exhaustive()
-
+    
     return {
       user_id: USER_ID,
-      start_date: startDate.toISOString().split('T')[0],
-      end_date: endDate.toISOString().split('T')[0],
+      start_date: dateRange.from.toISOString().split('T')[0],
+      end_date: (dateRange.to || dateRange.from).toISOString().split('T')[0],
       project_id: projectId
     }
   }
 }))
 
 export function useStatsFilters() {
-  const { dateRange, projectId, setDateRange, setProjectId, getFilters } = useStatsFiltersStore()
+  const { dateRange, rangeCompare, projectId, setDateRange, setProjectId, getFilters } = useStatsFiltersStore()
   
   return {
     filters: getFilters(),
     dateRange,
+    rangeCompare,
     setDateRange,
     projectId,
     setProjectId

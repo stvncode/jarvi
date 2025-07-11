@@ -5,25 +5,15 @@ import { Area, AreaChart, CartesianGrid, XAxis } from "recharts"
 
 import {
   Card,
-  CardAction,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
   type ChartConfig,
   ChartContainer,
-  ChartTooltip,
-  ChartTooltipContent,
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-  ToggleGroup,
-  ToggleGroupItem,
+  ChartTooltip
 } from "@/components/ui"
-import { useIsMobile } from "@/hooks/use-mobile"
-import { useBasicStats } from "@/hooks/use-stats"
+import { useDailyStats } from "@/hooks/use-stats"
 import { useStatsFilters } from "@/stores/stats-filters-store"
 
 export const description = "Graphique interactif des taux de réponse"
@@ -43,46 +33,134 @@ const chartConfig = {
   },
 } satisfies ChartConfig
 
-export function ChartAreaInteractive() {
-  const isMobile = useIsMobile()
-  const { filters, dateRange, setDateRange } = useStatsFilters()
-  const { data: stats, isLoading, error } = useBasicStats(filters)
+const formatDateRange = (from: Date, to?: Date): string => {
+  const formatDate = (date: Date) => date.toLocaleDateString('fr-FR', { 
+    day: 'numeric', 
+    month: 'short',
+    year: date.getFullYear() !== new Date().getFullYear() ? 'numeric' : undefined
+  })
+  
+  if (!to || from.toDateString() === to.toDateString()) {
+    return formatDate(from)
+  }
+  
+  return `${formatDate(from)} - ${formatDate(to)}`
+}
 
-  React.useEffect(() => {
-    if (isMobile && dateRange !== "7d") {
-      setDateRange("7d")
-    }
-  }, [isMobile, dateRange, setDateRange])
+const formatChartDate = (dateString: string): string => {
+  const date = new Date(dateString)
+  return date.toLocaleDateString('fr-FR', { 
+    day: 'numeric', 
+    month: 'short' 
+  })
+}
+
+const formatTooltipDate = (dateString: string): string => {
+  const date = new Date(dateString)
+
+  return date.toLocaleDateString('fr-FR', { 
+    weekday: 'long',
+    day: 'numeric', 
+    month: 'long',
+    year: 'numeric'
+  }).charAt(0).toUpperCase() + date.toLocaleDateString('fr-FR', { 
+    weekday: 'long',
+    day: 'numeric', 
+    month: 'long',
+    year: 'numeric'
+  }).slice(1)
+}
+
+const generateDateRange = (startDate: string, endDate: string): string[] => {
+  const dates: string[] = []
+  const start = new Date(startDate)
+  const end = new Date(endDate)
+  
+  const current = new Date(start)
+  while (current <= end) {
+    dates.push(current.toISOString().split('T')[0])
+    current.setDate(current.getDate() + 1)
+  }
+  
+  return dates
+}
+
+// Custom tooltip component
+const CustomTooltip = ({ active, payload, label }: any) => {
+  if (!active || !payload || !payload.length) return null
+
+  const date = payload[0]?.payload?.date
+  if (!date) return null
+
+  return (
+    <div className="rounded-lg border bg-background p-3 shadow-lg">
+      <div className="text-sm font-bold text-foreground mb-2">
+        {formatTooltipDate(date)}
+      </div>
+      <div className="space-y-1">
+        {payload.map((entry: any, index: number) => {
+          const config = chartConfig[entry.dataKey as keyof typeof chartConfig]
+          if (!config) return null
+          
+          return (
+            <div key={index} className="flex items-center justify-between gap-3">
+              <div className="flex items-center gap-2">
+                <div 
+                  className="h-2 w-2 rounded-full" 
+                  style={{ backgroundColor: entry.color }}
+                />
+                <span className="text-sm text-muted-foreground font-semibold">
+                  {config.label}
+                </span>
+              </div>
+              <span className="text-sm font-semibold">
+                {entry.value?.toFixed(1)}%
+              </span>
+            </div>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
+export function ChartAreaInteractive() {
+  const { filters, dateRange } = useStatsFilters()
+  const { data: dailyStats, isLoading, error } = useDailyStats(filters)
 
   const chartData = React.useMemo(() => {
-    if (!stats) return []
+    if (!dailyStats || dailyStats.length === 0) return []
 
-    const getAllTypeStats = () => {
-      const types = ['EMAIL_SENT', 'LINKEDIN_MESSAGE_SENT', 'LINKEDIN_INMAIL_SENT'] as const
-      return types.reduce((acc, type) => {
-        const stat = stats.stats_by_type?.find(s => s.type === type)
-        acc[type] = stat?.response_rate || 0
-        return acc
-      }, {} as Record<string, number>)
-    }
+    const allDates = generateDateRange(filters.start_date, filters.end_date)
+    
+    const statsMap = new Map(dailyStats.map(stat => [stat.date, stat]))
 
-    return [{
-      period: "Comparaison des taux de réponse",
-      ...getAllTypeStats()
-    }]
-  }, [stats])
+    return allDates.map(date => {
+      const existingData = statsMap.get(date)
+      const dataPoint: any = {
+        date,
+        dateFormatted: formatChartDate(date)
+      }
 
-  const timeRangeLabels = {
-    "7d": "7 derniers jours",
-    "30d": "30 derniers jours", 
-    "90d": "90 derniers jours"
-  }
+      if (existingData) {
+        existingData.stats_by_type.forEach(stat => {
+          dataPoint[stat.type] = stat.response_rate
+        })
+      } else {
+        Object.keys(chartConfig).forEach(messageType => {
+          dataPoint[messageType] = 0
+        })
+      }
+
+      return dataPoint
+    })
+  }, [dailyStats, filters.start_date, filters.end_date])
 
   if (isLoading) {
     return (
       <Card className="@container/card">
         <CardHeader>
-          <CardTitle>Taux de réponse par type</CardTitle>
+          <CardTitle>Évolution des taux de réponse</CardTitle>
           <CardDescription>Chargement...</CardDescription>
         </CardHeader>
         <CardContent className="p-6">
@@ -105,11 +183,11 @@ export function ChartAreaInteractive() {
     )
   }
 
-  if (!stats) {
+  if (!dailyStats || dailyStats.length === 0) {
     return (
       <Card className="@container/card">
         <CardHeader>
-          <CardTitle>Taux de réponse par type</CardTitle>
+          <CardTitle>Évolution des taux de réponse</CardTitle>
           <CardDescription>Aucune donnée disponible pour la période sélectionnée</CardDescription>
         </CardHeader>
       </Card>
@@ -119,46 +197,10 @@ export function ChartAreaInteractive() {
   return (
     <Card className="@container/card">
       <CardHeader>
-        <CardTitle>Comparaison des canaux de communication</CardTitle>
+        <CardTitle>Évolution des taux de réponse</CardTitle>
         <CardDescription>
-          <span className="hidden @[540px]/card:block">
-            Taux de réponse par type de message - {timeRangeLabels[dateRange]}
-          </span>
-          <span className="@[540px]/card:hidden">{timeRangeLabels[dateRange]}</span>
+          Taux de réponse par jour et par canal - {formatDateRange(dateRange.from, dateRange.to)}
         </CardDescription>
-        <CardAction>
-          <ToggleGroup
-            type="single"
-            value={dateRange}
-            onValueChange={(value) => value && setDateRange(value as '7d' | '30d' | '90d')}
-            variant="outline"
-            className="hidden *:data-[slot=toggle-group-item]:!px-4 @[767px]/card:flex"
-          >
-            <ToggleGroupItem value="90d">90 jours</ToggleGroupItem>
-            <ToggleGroupItem value="30d">30 jours</ToggleGroupItem>
-            <ToggleGroupItem value="7d">7 jours</ToggleGroupItem>
-          </ToggleGroup>
-          <Select value={dateRange} onValueChange={(value) => setDateRange(value as '7d' | '30d' | '90d')}>
-            <SelectTrigger
-              className="flex w-40 **:data-[slot=select-value]:block **:data-[slot=select-value]:truncate @[767px]/card:hidden"
-              size="sm"
-              aria-label="Sélectionner une période"
-            >
-              <SelectValue placeholder="30 derniers jours" />
-            </SelectTrigger>
-            <SelectContent className="rounded-xl">
-              <SelectItem value="90d" className="rounded-lg">
-                90 derniers jours
-              </SelectItem>
-              <SelectItem value="30d" className="rounded-lg">
-                30 derniers jours
-              </SelectItem>
-              <SelectItem value="7d" className="rounded-lg">
-                7 derniers jours
-              </SelectItem>
-            </SelectContent>
-          </Select>
-        </CardAction>
       </CardHeader>
       <CardContent className="px-2 sm:p-6">
         <ChartContainer
@@ -175,39 +217,46 @@ export function ChartAreaInteractive() {
           >
             <CartesianGrid vertical={false} />
             <XAxis
-              dataKey="period"
+              dataKey="dateFormatted"
               tickLine={false}
               axisLine={false}
               tickMargin={8}
-              hide
+              tickFormatter={(value, index) => {
+                const shouldShow = chartData.length <= 7 || index % Math.ceil(chartData.length / 7) === 0
+                
+                return shouldShow ? value : ''
+              }}
             />
             <ChartTooltip
-              cursor={false}
-              content={<ChartTooltipContent indicator="dot" />}
+              cursor={{ stroke: "hsl(var(--muted))", strokeWidth: 1 }}
+              content={<CustomTooltip />}
             />
             <Area
               dataKey="EMAIL_SENT"
-              type="natural"
+              type="monotone"
               fill="var(--color-EMAIL_SENT)"
               fillOpacity={0.4}
               stroke="var(--color-EMAIL_SENT)"
-              stackId="a"
+              strokeWidth={2}
+              dot={false}
             />
             <Area
               dataKey="LINKEDIN_MESSAGE_SENT"
-              type="natural"
+              type="monotone"
               fill="var(--color-LINKEDIN_MESSAGE_SENT)"
               fillOpacity={0.4}
               stroke="var(--color-LINKEDIN_MESSAGE_SENT)"
-              stackId="a"
+              strokeWidth={2}
+              dot={false}
             />
             <Area
               dataKey="LINKEDIN_INMAIL_SENT"
-              type="natural"
+              type="monotone"
               fill="var(--color-LINKEDIN_INMAIL_SENT)"
               fillOpacity={0.4}
               stroke="var(--color-LINKEDIN_INMAIL_SENT)"
-              stackId="a"
+              strokeWidth={2}
+              dot={false}
             />
           </AreaChart>
         </ChartContainer>

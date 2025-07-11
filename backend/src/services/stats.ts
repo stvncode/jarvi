@@ -46,6 +46,72 @@ export async function getStatsForPeriod(filters: StatsFilters): Promise<MessageT
   }));
 }
 
+export async function getDailyStatsForPeriod(filters: StatsFilters): Promise<Array<{
+  date: string,
+  stats_by_type: MessageTypeStats[]
+}>> {
+  const { user_id, start_date, end_date, project_id } = filters;
+
+  const whereConditions = [
+    eq(historyEntries.userId, user_id),
+    gte(historyEntries.createdAt, new Date(start_date)),
+    lte(historyEntries.createdAt, adjustEndDate(end_date)),
+    inArray(historyEntries.type, MESSAGE_TYPES),
+    isNull(historyEntries.deletedAt)
+  ];
+
+  if (project_id) {
+    whereConditions.push(eq(historyEntries.externalThreadId, project_id));
+  }
+
+  const rawStats = await db
+    .select({
+      date: sql<string>`DATE(${historyEntries.createdAt})`,
+      type: historyEntries.type,
+      totalSent: sql<number>`count(*)`,
+      totalReplied: sql<number>`count(case when ${historyEntries.triggerHasBeenRepliedTo} = true then 1 end)`
+    })
+    .from(historyEntries)
+    .where(and(...whereConditions))
+    .groupBy(sql`DATE(${historyEntries.createdAt})`, historyEntries.type)
+    .orderBy(sql`DATE(${historyEntries.createdAt})`);
+
+  const statsByDate: Record<string, MessageTypeStats[]> = {};
+  
+  rawStats.forEach(stat => {
+    const date = stat.date;
+    if (!statsByDate[date]) {
+      statsByDate[date] = [];
+    }
+    
+    statsByDate[date].push({
+      type: stat.type as MessageType,
+      total_sent: Number(stat.totalSent),
+      total_replied: Number(stat.totalReplied),
+      response_rate: Number(stat.totalSent) > 0 
+        ? Number(((Number(stat.totalReplied) / Number(stat.totalSent)) * 100).toFixed(2))
+        : 0
+    });
+  });
+
+  return Object.entries(statsByDate).map(([date, stats]) => {
+    const completeStats = MESSAGE_TYPES.map(messageType => {
+      const existingStat = stats.find(s => s.type === messageType);
+      return existingStat || {
+        type: messageType,
+        total_sent: 0,
+        total_replied: 0,
+        response_rate: 0
+      };
+    });
+
+    return {
+      date,
+      stats_by_type: completeStats
+    };
+  });
+}
+
 export function calculatePreviousPeriod(start_date: string, end_date: string): { start_date: string; end_date: string } {
   const startDate = new Date(start_date);
   const endDate = new Date(end_date);
@@ -113,4 +179,34 @@ export async function getCompleteStats(filters: StatsFilters, includeComparison 
     total_messages: totalMessages,
     overall_response_rate: overallResponseRate
   };
+}
+
+export async function getAvailableProjects(userId: string): Promise<Array<{
+  id: string,
+  name: string,
+  messageCount: number
+}>> {
+  const result = await db
+    .select({
+      externalThreadId: historyEntries.externalThreadId,
+      count: sql<number>`count(*)`
+    })
+    .from(historyEntries)
+    .where(
+      and(
+        eq(historyEntries.userId, userId),
+        isNull(historyEntries.deletedAt),
+        sql`${historyEntries.externalThreadId} IS NOT NULL`,
+        inArray(historyEntries.type, MESSAGE_TYPES)
+      )
+    )
+    .groupBy(historyEntries.externalThreadId)
+    .orderBy(sql`count(*) DESC`)
+    .limit(50);
+
+  return result.map(row => ({
+    id: row.externalThreadId!,
+    name: `Projet ${row.externalThreadId!.slice(-8)}`,
+    messageCount: Number(row.count)
+  }));
 } 

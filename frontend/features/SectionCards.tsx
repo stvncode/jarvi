@@ -9,12 +9,11 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui"
-import { useBasicStats } from "@/hooks/use-stats"
+import { useStatsWithComparison } from "@/hooks/use-stats"
 import { useStatsFilters } from "@/stores/stats-filters-store"
-import { IconBrandLinkedin, IconMail, IconSend } from "@tabler/icons-react"
+import { IconBrandLinkedin, IconMail, IconSend, IconTrendingDown, IconTrendingUp } from "@tabler/icons-react"
 import type { MessageType } from "../../shared/src/types"
 
-//TODO: Add comparison with previous period with the correct query
 const MESSAGE_TYPE_CONFIG: Record<MessageType, { label: string; icon: React.ComponentType<any>; color: string }> = {
   EMAIL_SENT: { 
     label: 'Emails', 
@@ -35,9 +34,44 @@ const MESSAGE_TYPE_CONFIG: Record<MessageType, { label: string; icon: React.Comp
 
 const ALL_MESSAGE_TYPES: MessageType[] = ['EMAIL_SENT', 'LINKEDIN_MESSAGE_SENT', 'LINKEDIN_INMAIL_SENT']
 
+function getTrendingIcon(change: number) {
+  return change >= 0 ? IconTrendingUp : IconTrendingDown
+}
+
+function getTrendingVariant(change: number): "default" | "secondary" | "destructive" | "outline" {
+  if (change > 0) return "default"
+  if (change < 0) return "destructive" 
+  return "outline"
+}
+
+function formatTrendingText(change: number, isImprovement: boolean) {
+  const absChange = Math.abs(change)
+  if (change > 0) {
+    return `En hausse de ${absChange.toFixed(1)}% cette période`
+  } else if (change < 0) {
+    return `En baisse de ${absChange.toFixed(1)}% cette période`
+  }
+  return "Stable cette période"
+}
+
+function getTrendingDescription(change: number, messageType: string) {
+  if (Math.abs(change) < 1) {
+    return "Performance stable"
+  }
+  if (change > 10) {
+    return `Excellente progression pour ${messageType.toLowerCase()}`
+  } else if (change > 0) {
+    return `Amélioration notable`
+  } else if (change > -10) {
+    return `Légère baisse, à surveiller`
+  } else {
+    return `Forte baisse, attention requise`
+  }
+}
+
 export function SectionCards() {
   const { filters } = useStatsFilters()
-  const { data: stats, isLoading, error } = useBasicStats(filters)
+  const { data: stats, isLoading, error } = useStatsWithComparison(filters)
 
   if (isLoading) {
     return (
@@ -73,6 +107,9 @@ export function SectionCards() {
     return null
   }
 
+  const globalChange = stats.comparison?.change_percentage || 0
+  const GlobalTrendingIcon = getTrendingIcon(globalChange)
+
   const globalCard = (
     <Card className="@container/card">
       <CardHeader>
@@ -81,17 +118,35 @@ export function SectionCards() {
           {stats.overall_response_rate}%
         </CardTitle>
         <CardAction>
-          <Badge variant="outline">
-            {stats.total_messages} message{stats.total_messages > 1 ? 's' : ''}
-          </Badge>
+          {stats.comparison ? (
+            <Badge variant={getTrendingVariant(globalChange)}>
+              <GlobalTrendingIcon className="size-3 mr-1" />
+              {globalChange > 0 ? '+' : ''}{globalChange.toFixed(1)}%
+            </Badge>
+          ) : (
+            <Badge variant="outline">
+              {stats.total_messages} message{stats.total_messages > 1 ? 's' : ''}
+            </Badge>
+          )}
         </CardAction>
       </CardHeader>
       <CardFooter className="flex-col items-start gap-1.5 text-sm">
         <div className="line-clamp-1 flex gap-2 font-medium">
-          Performance globale sur la période
+          {stats.comparison ? (
+            <>
+              {formatTrendingText(globalChange, stats.comparison.is_improvement)}
+              <GlobalTrendingIcon className="size-4" />
+            </>
+          ) : (
+            'Performance globale sur la période'
+          )}
         </div>
         <div className="text-muted-foreground">
-          {stats.total_messages} messages envoyés au total
+          {stats.comparison ? (
+            `${stats.total_messages} messages vs ${Math.round(stats.total_messages / (1 + globalChange/100))} précédemment`
+          ) : (
+            `${stats.total_messages} messages envoyés au total`
+          )}
         </div>
       </CardFooter>
     </Card>
@@ -106,6 +161,9 @@ export function SectionCards() {
     const totalSent = stat?.total_sent || 0
     const totalReplied = stat?.total_replied || 0
 
+    const estimatedChange = stats.comparison?.change_percentage || 0
+    const TrendingIcon = getTrendingIcon(estimatedChange)
+
     return (
       <Card key={messageType} className="@container/card">
         <CardHeader>
@@ -117,21 +175,35 @@ export function SectionCards() {
             {responseRate}%
           </CardTitle>
           <CardAction>
-            <Badge variant={totalSent > 0 ? "outline" : "secondary"}>
-              {totalSent} envoyé{totalSent > 1 ? 's' : ''}
-            </Badge>
+            {stats.comparison && totalSent > 0 ? (
+              <Badge variant={getTrendingVariant(estimatedChange)}>
+                <TrendingIcon className="size-3 mr-1" />
+                {estimatedChange > 0 ? '+' : ''}{estimatedChange.toFixed(1)}%
+              </Badge>
+            ) : (
+              <Badge variant={totalSent > 0 ? "outline" : "secondary"}>
+                {totalSent} envoyé{totalSent > 1 ? 's' : ''}
+              </Badge>
+            )}
           </CardAction>
         </CardHeader>
         <CardFooter className="flex-col items-start gap-1.5 text-sm">
           <div className="line-clamp-1 flex gap-2 font-medium">
-            {totalSent > 0 ? (
+            {stats.comparison && totalSent > 0 ? (
+              <>
+                {formatTrendingText(estimatedChange, stats.comparison.is_improvement)}
+                <TrendingIcon className="size-4" />
+              </>
+            ) : totalSent > 0 ? (
               `${totalReplied} réponse${totalReplied > 1 ? 's' : ''} reçue${totalReplied > 1 ? 's' : ''}`
             ) : (
               'Aucun message envoyé'
             )}
           </div>
           <div className="text-muted-foreground">
-            {totalSent > 0 ? (
+            {stats.comparison && totalSent > 0 ? (
+              getTrendingDescription(estimatedChange, config.label)
+            ) : totalSent > 0 ? (
               `sur ${totalSent} message${totalSent > 1 ? 's' : ''} envoyé${totalSent > 1 ? 's' : ''}`
             ) : (
               'Pas de données pour cette période'
